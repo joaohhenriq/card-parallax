@@ -3,6 +3,8 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'model/card_model.dart';
+
 void main() {
   SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.light);
   runApp(MyApp());
@@ -40,7 +42,9 @@ class _HomePageState extends State<HomePage> {
           Expanded(
             child: Padding(
               padding: EdgeInsets.all(16),
-              child: CardFlipper(),
+              child: CardFlipper(
+                cards: cards
+              ),
             ),
           ),
           Container(
@@ -55,6 +59,11 @@ class _HomePageState extends State<HomePage> {
 }
 
 class CardFlipper extends StatefulWidget {
+
+  final List<CardModel> cards;
+
+  const CardFlipper({Key key, this.cards}) : super(key: key);
+
   @override
   _CardFlipperState createState() => _CardFlipperState();
 }
@@ -100,7 +109,7 @@ class _CardFlipperState extends State<CardFlipper>
     final currDrag = details.globalPosition;
     final dragDistance = currDrag.dx - startDrag.dx;
     final singleCardDragPercent = dragDistance / context.size.width;
-    final numCards = 3;
+    final numCards = widget.cards.length;
 
     setState(() {
       scrollPercent =
@@ -110,7 +119,7 @@ class _CardFlipperState extends State<CardFlipper>
   }
 
   void _onHorizontalDragEnd(DragEndDetails details) {
-    final numCards = 3;
+    final numCards = widget.cards.length;
 
     finishScrollStart = scrollPercent;
     finishScrollEnd = (scrollPercent * numCards).round() / numCards;
@@ -138,27 +147,37 @@ class _CardFlipperState extends State<CardFlipper>
   }
 
   List<Widget> _buildCards() {
-    return [
-      _buildCard(0, 3, scrollPercent),
-      _buildCard(1, 3, scrollPercent),
-      _buildCard(2, 3, scrollPercent),
-    ];
+    final cardCount = widget.cards.length;
+
+    int index = -1;
+    return widget.cards.map((CardModel cardModel){
+      ++index;
+      return _buildCard(cardModel, index, cardCount, scrollPercent);
+      
+    }).toList();
   }
 
-  Widget _buildCard(int cardIndex, int cardCount, double scrollPercent) {
+  Widget _buildCard(CardModel cardModel, int cardIndex, int cardCount, double scrollPercent) {
     final cardScrollPercent = scrollPercent / (1 / cardCount);
 
     return FractionalTranslation(
       translation: Offset(cardIndex - cardScrollPercent, 0),
       child: Padding(
         padding: const EdgeInsets.all(10.0),
-        child: CardLayout(),
+        child: CardLayout(
+          cardModel: cardModel
+        ),
       ),
     );
   }
 }
 
 class CardLayout extends StatelessWidget {
+
+  final CardModel cardModel;
+
+  const CardLayout({Key key, this.cardModel}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -166,7 +185,7 @@ class CardLayout extends StatelessWidget {
       children: <Widget>[
         ClipRRect(
           child: Image.asset(
-            "assets/images/photo1.jpg",
+            cardModel.photoAssetPath,
             fit: BoxFit.cover,
           ),
           borderRadius: BorderRadius.all(Radius.circular(10)),
