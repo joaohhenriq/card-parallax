@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -57,8 +59,8 @@ class CardFlipper extends StatefulWidget {
   _CardFlipperState createState() => _CardFlipperState();
 }
 
-class _CardFlipperState extends State<CardFlipper> {
-
+class _CardFlipperState extends State<CardFlipper>
+    with TickerProviderStateMixin {
   double scrollPercent = 0.0;
   Offset startDrag;
   double startDragPercentScroll;
@@ -66,15 +68,32 @@ class _CardFlipperState extends State<CardFlipper> {
   double finishScrollEnd;
   AnimationController finishingController;
 
-
   @override
   void initState() {
-    
+    finishingController = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 200),
+    )..addListener(() {
+        setState(() {
+          scrollPercent = lerpDouble(
+            finishScrollStart,
+            finishScrollEnd,
+            finishingController.value,
+          );
+        });
+      });
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    finishingController.dispose();
+    super.dispose();
   }
 
   void _onHorizontalDragStart(DragStartDetails details) {
     startDrag = details.globalPosition;
-    startDragPercentScroll =  scrollPercent;
+    startDragPercentScroll = scrollPercent;
   }
 
   void _onHorizontalDragUpdate(DragUpdateDetails details) {
@@ -84,11 +103,19 @@ class _CardFlipperState extends State<CardFlipper> {
     final numCards = 3;
 
     setState(() {
-      scrollPercent = (startDragPercentScroll + (-singleCardDragPercent / numCards)).clamp(0.0, 1.0 - (1 / numCards));
+      scrollPercent =
+          (startDragPercentScroll + (-singleCardDragPercent / numCards))
+              .clamp(0.0, 1.0 - (1 / numCards));
     });
   }
 
   void _onHorizontalDragEnd(DragEndDetails details) {
+    final numCards = 3;
+
+    finishScrollStart = scrollPercent;
+    finishScrollEnd = (scrollPercent * numCards).round() / numCards;
+    finishingController.forward(from: 0.0);
+
     setState(() {
       startDrag = null;
       startDragPercentScroll = null;
