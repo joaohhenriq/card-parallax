@@ -28,6 +28,8 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  double scrollPercent = 0.0;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -43,14 +45,18 @@ class _HomePageState extends State<HomePage> {
             child: Padding(
               padding: EdgeInsets.all(16),
               child: CardFlipper(
-                cards: cards
+                cards: cards,
+                onScroll: (double scrollPercent){
+                  setState(() {
+                    this.scrollPercent = scrollPercent;
+                  });
+                }
               ),
             ),
           ),
-          Container(
-            width: double.infinity,
-            height: 50,
-            color: Colors.grey,
+          BottomBar(
+            scrollPercent: scrollPercent,
+            cardCount: cards.length,
           )
         ],
       ),
@@ -59,10 +65,10 @@ class _HomePageState extends State<HomePage> {
 }
 
 class CardFlipper extends StatefulWidget {
-
   final List<CardModel> cards;
+  final Function(double scrollPercent) onScroll;
 
-  const CardFlipper({Key key, this.cards}) : super(key: key);
+  const CardFlipper({Key key, this.cards, this.onScroll}) : super(key: key);
 
   @override
   _CardFlipperState createState() => _CardFlipperState();
@@ -89,6 +95,10 @@ class _CardFlipperState extends State<CardFlipper>
             finishScrollEnd,
             finishingController.value,
           );
+
+          if(widget.onScroll != null){
+            widget.onScroll(scrollPercent);
+          }
         });
       });
     super.initState();
@@ -115,6 +125,10 @@ class _CardFlipperState extends State<CardFlipper>
       scrollPercent =
           (startDragPercentScroll + (-singleCardDragPercent / numCards))
               .clamp(0.0, 1.0 - (1 / numCards));
+
+      if(widget.onScroll != null){
+        widget.onScroll(scrollPercent);
+      }
     });
   }
 
@@ -150,14 +164,14 @@ class _CardFlipperState extends State<CardFlipper>
     final cardCount = widget.cards.length;
 
     int index = -1;
-    return widget.cards.map((CardModel cardModel){
+    return widget.cards.map((CardModel cardModel) {
       ++index;
       return _buildCard(cardModel, index, cardCount, scrollPercent);
-      
     }).toList();
   }
 
-  Widget _buildCard(CardModel cardModel, int cardIndex, int cardCount, double scrollPercent) {
+  Widget _buildCard(
+      CardModel cardModel, int cardIndex, int cardCount, double scrollPercent) {
     final cardScrollPercent = scrollPercent / (1 / cardCount);
     final parallax = scrollPercent - (cardIndex / cardCount);
 
@@ -175,11 +189,11 @@ class _CardFlipperState extends State<CardFlipper>
 }
 
 class CardLayout extends StatelessWidget {
-
   final CardModel cardModel;
   final double parallaxPercent;
 
-  const CardLayout({Key key, this.cardModel, this.parallaxPercent = 0.0}) : super(key: key);
+  const CardLayout({Key key, this.cardModel, this.parallaxPercent = 0.0})
+      : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -245,5 +259,121 @@ class CardLayout extends StatelessWidget {
         )
       ],
     );
+  }
+}
+
+class BottomBar extends StatelessWidget {
+  final int cardCount;
+  final double scrollPercent;
+
+  const BottomBar({Key key, this.cardCount, this.scrollPercent})
+      : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 15, bottom: 15),
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: Center(
+              child: Icon(
+                Icons.remove,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Container(
+              width: double.infinity,
+              height: 5.0,
+              child: ScrollIndicator(
+                  cardCount: cardCount, scrollPercent: scrollPercent),
+            ),
+          ),
+          Expanded(
+            child: Center(
+              child: Icon(
+                Icons.add,
+                color: Colors.white,
+              ),
+            ),
+          )
+        ],
+      ),
+    );
+  }
+}
+
+class ScrollIndicator extends StatelessWidget {
+  final int cardCount;
+  final double scrollPercent;
+
+  const ScrollIndicator({Key key, this.cardCount, this.scrollPercent})
+      : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: ScrollIndicatorPainter(
+          cardCount: cardCount, scrollPercent: scrollPercent),
+      child: Container(),
+    );
+  }
+}
+
+class ScrollIndicatorPainter extends CustomPainter {
+  final int cardCount;
+  final double scrollPercent;
+  final Paint trackPaint;
+  final Paint thumbPaint;
+
+  ScrollIndicatorPainter({this.cardCount, this.scrollPercent})
+      : trackPaint = Paint()
+          ..color = Color(0xFF444444)
+          ..style = PaintingStyle.fill,
+        thumbPaint = Paint()
+          ..color = Colors.white
+          ..style = PaintingStyle.fill;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawRRect(
+        RRect.fromRectAndCorners(
+          Rect.fromLTWH(
+            0,
+            0,
+            size.width,
+            size.height,
+          ),
+          topLeft: Radius.circular(3),
+          topRight: Radius.circular(3),
+          bottomRight: Radius.circular(3),
+          bottomLeft: Radius.circular(3),
+        ),
+        trackPaint);
+
+    final thumbWidth = size.width / cardCount;
+    final thumbLeft = scrollPercent * size.width;
+
+    canvas.drawRRect(
+        RRect.fromRectAndCorners(
+          Rect.fromLTWH(
+            thumbLeft,
+            0,
+            thumbWidth,
+            size.height,
+          ),
+          topLeft: Radius.circular(3),
+          topRight: Radius.circular(3),
+          bottomRight: Radius.circular(3),
+          bottomLeft: Radius.circular(3),
+        ),
+        thumbPaint);
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) {
+    return true;
   }
 }
