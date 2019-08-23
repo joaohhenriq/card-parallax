@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -45,13 +46,12 @@ class _HomePageState extends State<HomePage> {
             child: Padding(
               padding: EdgeInsets.all(16),
               child: CardFlipper(
-                cards: cards,
-                onScroll: (double scrollPercent){
-                  setState(() {
-                    this.scrollPercent = scrollPercent;
-                  });
-                }
-              ),
+                  cards: cards,
+                  onScroll: (double scrollPercent) {
+                    setState(() {
+                      this.scrollPercent = scrollPercent;
+                    });
+                  }),
             ),
           ),
           BottomBar(
@@ -96,7 +96,7 @@ class _CardFlipperState extends State<CardFlipper>
             finishingController.value,
           );
 
-          if(widget.onScroll != null){
+          if (widget.onScroll != null) {
             widget.onScroll(scrollPercent);
           }
         });
@@ -126,7 +126,7 @@ class _CardFlipperState extends State<CardFlipper>
           (startDragPercentScroll + (-singleCardDragPercent / numCards))
               .clamp(0.0, 1.0 - (1 / numCards));
 
-      if(widget.onScroll != null){
+      if (widget.onScroll != null) {
         widget.onScroll(scrollPercent);
       }
     });
@@ -170,6 +170,30 @@ class _CardFlipperState extends State<CardFlipper>
     }).toList();
   }
 
+  Matrix4 _buildCardProjection(double scrollPercent) {
+    final perspective = 0.002;
+    final radius = 1.0;
+    final angle = scrollPercent * pi / 8;
+    final horizontalTranslation = 0.0;
+
+    Matrix4 projection = Matrix4.identity()
+      ..setEntry(0, 0, 1 / radius)
+      ..setEntry(1, 1, 1 / radius)
+      ..setEntry(3, 2, -perspective)
+      ..setEntry(2, 3, -radius)
+      ..setEntry(3, 3, perspective * radius + 1);
+
+    final rotationPointMultiplier = angle > 0.0 ? angle / angle.abs() : 1.0;
+    print("Angle: $angle");
+    projection *= Matrix4.translationValues(
+            horizontalTranslation + (rotationPointMultiplier * 300), 0.0, 0.0) *
+        Matrix4.rotationY(angle) *
+        Matrix4.translationValues(0, 0, radius) *
+        Matrix4.translationValues(-rotationPointMultiplier * 300, 0, 0);
+
+    return projection;
+  }
+
   Widget _buildCard(
       CardModel cardModel, int cardIndex, int cardCount, double scrollPercent) {
     final cardScrollPercent = scrollPercent / (1 / cardCount);
@@ -179,9 +203,12 @@ class _CardFlipperState extends State<CardFlipper>
       translation: Offset(cardIndex - cardScrollPercent, 0),
       child: Padding(
         padding: const EdgeInsets.all(10.0),
-        child: CardLayout(
-          cardModel: cardModel,
-          parallaxPercent: parallax,
+        child: Transform(
+          transform: _buildCardProjection(cardScrollPercent - cardIndex),
+          child: CardLayout(
+            cardModel: cardModel,
+            parallaxPercent: parallax,
+          ),
         ),
       ),
     );
